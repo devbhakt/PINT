@@ -414,6 +414,11 @@ class emcee_fitter(Fitter):
             self.model, phs, phserr
         )
         self.n_fit_params = len(self.fitvals)
+        self.M, _, _ = self.model.designmatrix(self.toas)
+        self.M *= -self.model.F0.value
+        self.M = self.M.transpose()
+        self.phases = self.get_event_phases()
+        self.calc_phase = False
 
     def get_event_phases(self):
         """
@@ -421,6 +426,13 @@ class emcee_fitter(Fitter):
         """
         phss = self.model.phase(self.toas).frac
         return phss.value % 1
+    
+    def calc_phase_matrix(self, theta):
+        d_phs = np.zeros(len(self.toas))
+        for i in range(len(theta) - 1):
+            d_phs += self.M[i + 1] * (self.fitvals[i] - theta[i])
+            # print(f'{d_phs.shape} \t {self.phases.shape}')
+        return (self.phases - d_phs) % 1
 
     def lnprior(self, theta):
         """
@@ -446,7 +458,10 @@ class emcee_fitter(Fitter):
             return -np.inf, -np.inf, -np.inf
 
         # Call PINT to compute the phases
-        phases = self.get_event_phases()
+        if self.calc_phase:
+            phases = self.calc_phase_matrix(theta)
+        else:
+            phases = self.get_event_phases()
         lnlikelihood = profile_likelihood(
             theta[-1], self.xtemp, phases, self.template, self.weights
         )
@@ -686,6 +701,13 @@ def main(argv=None):
         action="store_true",
         dest="noautocorr",
     )
+    parser.add_argument(
+        "--calc_phase",
+        help="Calculates the phase at each MCMC step using the designmatrix",
+        default=False,
+        action="store_true",
+        dest="calc_phase",
+    )
 
     args = parser.parse_args(argv)
     pint.logging.setup(
@@ -862,6 +884,9 @@ def main(argv=None):
     # This way, one walker should always be in a good position
     pos[0] = ftr.fitvals
 
+    # How phase will be calculated at each step (either with the designmatrix or )
+    ftr.calc_phase = True if args.calc_phase else False
+
     import emcee
 
     # Setting up a backend to save the chains into an h5 file
@@ -950,6 +975,7 @@ def main(argv=None):
     lnprior_samps = blobs["lnprior"]
     lnlikelihood_samps = blobs["lnlikelihood"]
     lnpost_samps = lnprior_samps + lnlikelihood_samps
+    maxpost= lnpost_samps[:][burnin:].max()
     ind = np.unravel_index(
         np.argmax(lnpost_samps[:][burnin:]), lnpost_samps[:][burnin:].shape
     )
@@ -1000,8 +1026,18 @@ def main(argv=None):
     ]
     ftr.set_param_uncertainties(dict(zip(ftr.fitkeys[:-1], errors[:-1])))
 
+    #if 'WaveX' in list(ftr.model.components.keys()):
+    #    n_params = len(ftr.model.free_params) - int(len(ftr.model.components['WaveX'].free_params_component)/2)
+    #else:
+    n_params = len(ftr.model.free_params)
+
+    AIC = 2*(n_params - maxpost)
+    BIC = n_params * np.log(len(ts)) - 2*maxpost
+
     f = open(filename + "_post.par", "w")
     f.write(ftr.model.as_parfile())
+    f.write(f'\n#The AIC is {AIC}')
+    f.write(f'\n#The BIC is {BIC}')
     f.close()
 
     # Print the best MCMC values and ranges
