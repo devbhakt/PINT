@@ -9,7 +9,7 @@ import numpy as np
 import scipy.optimize as op
 from astropy.coordinates import SkyCoord
 from astropy.time import Time
-from scipy.stats import norm, uniform
+from scipy.stats import norm, uniform, loguniform
 import pint.logging
 from loguru import logger as log
 
@@ -778,7 +778,7 @@ def main(argv=None):
     # more general priors on parameters that need certain bounds
     phs = 0.0 if args.phs is None else args.phs
     fitkeys, fitvals, fiterrs = get_fit_keyvals(modelin, phs=phs, phserr=args.phserr)
-
+    p0 = (1/modelin.F0.value).astype(float)
     for key, v, e in zip(fitkeys[:-1], fitvals[:-1], fiterrs[:-1]):
         if key == "SINI" or key == "E" or key == "ECC":
             getattr(modelin, key).prior = Prior(uniform(0.0, 1.0))
@@ -786,6 +786,8 @@ def main(argv=None):
             getattr(modelin, key).prior = Prior(uniform(0.0, 10.0))
         elif key.startswith("GLPH"):
             getattr(modelin, key).prior = Prior(uniform(-0.5, 1.0))
+        elif key.startswith('WX'):
+            getattr(modelin, key).prior = Prior(loguniform(1e-3,5.0))
         else:
             getattr(modelin, key).prior = Prior(
                 norm(loc=float(v), scale=float(e * args.priorerrfact))
@@ -1041,20 +1043,20 @@ def main(argv=None):
     f.close()
 
     # Print the best MCMC values and ranges
-    ranges = map(
+    ranges = list(map(
         lambda v: (v[1], v[2] - v[1], v[1] - v[0]),
         zip(*np.percentile(samples, [16, 50, 84], axis=0)),
-    )
+    ))
     log.info(f"Post-MCMC values (50th percentile +/- (16th/84th percentile):")
     for name, vals in zip(ftr.fitkeys, ranges):
-        log.info("%8s:" % name + "%25.15g (+ %12.5g  / - %12.5g)" % vals)
+       log.info(f'{name:8s}: {vals[0]:21.15g} (+ {vals[1]:12.5g} / - {vals[2]:12.5g})\n')
 
     # Put the same stuff in a file
     f = open(filename + "_results.txt", "w")
 
     f.write(f"Post-MCMC values (50th percentile +/- (16th/84th percentile):\n")
     for name, vals in zip(ftr.fitkeys, ranges):
-        f.write("%8s:" % name + " %25.15g (+ %12.5g  / - %12.5g)\n" % vals)
+        f.write(f'{name:8s}: {vals[0]:21.15g} (+ {vals[1]:12.5g} / - {vals[2]:12.5g})\n')
 
     f.write(f"\nMaximum likelihood par file:\n")
     f.write(ftr.model.as_parfile())
