@@ -283,7 +283,7 @@ def plot_priors(
         a, x = np.histogram(values[i], bins=bins, density=True)
         counts.append(a)
 
-    fig, axs = plt.subplots(len(keys), figsize=(8, 11), constrained_layout=True)
+    fig, axs = plt.subplots(len(keys),constrained_layout=True)
 
     for i, p in enumerate(keys):
         if i != len(keys[:-1]):

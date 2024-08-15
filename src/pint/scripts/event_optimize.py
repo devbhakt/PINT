@@ -12,6 +12,9 @@ from astropy.time import Time
 from scipy.stats import norm, uniform, loguniform
 import pint.logging
 from loguru import logger as log
+import matplotlib
+
+matplotlib.use('agg')
 
 pint.logging.setup(level=pint.logging.script_level)
 
@@ -787,7 +790,7 @@ def main(argv=None):
         elif key.startswith("GLPH"):
             getattr(modelin, key).prior = Prior(uniform(-0.5, 1.0))
         elif key.startswith('WX'):
-            getattr(modelin, key).prior = Prior(loguniform(1e-3,5.0))
+            getattr(modelin, key).prior = Prior(uniform(-1/p0,2.0/p0))
         else:
             getattr(modelin, key).prior = Prior(
                 norm(loc=float(v), scale=float(e * args.priorerrfact))
