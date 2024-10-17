@@ -1039,6 +1039,7 @@ def main(argv=None):
     AIC = 2*(n_params - maxpost)
     BIC = n_params * np.log(len(ts)) - 2*maxpost
 
+    ftr.model.NTOA.value = ts.ntoas
     f = open(filename + "_post.par", "w")
     f.write(ftr.model.as_parfile())
     f.write(f'\n#The AIC is {AIC}')
