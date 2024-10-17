@@ -14,7 +14,7 @@ import pint.logging
 from loguru import logger as log
 import matplotlib
 
-matplotlib.use('agg')
+matplotlib.use("agg")
 
 pint.logging.setup(level=pint.logging.script_level)
 
@@ -429,7 +429,7 @@ class emcee_fitter(Fitter):
         """
         phss = self.model.phase(self.toas).frac
         return phss.value % 1
-    
+
     def calc_phase_matrix(self, theta):
         d_phs = np.zeros(len(self.toas))
         for i in range(len(theta) - 1):
@@ -781,7 +781,7 @@ def main(argv=None):
     # more general priors on parameters that need certain bounds
     phs = 0.0 if args.phs is None else args.phs
     fitkeys, fitvals, fiterrs = get_fit_keyvals(modelin, phs=phs, phserr=args.phserr)
-    p0 = (1/modelin.F0.value).astype(float)
+    p0 = (1 / modelin.F0.value).astype(float)
     for key, v, e in zip(fitkeys[:-1], fitvals[:-1], fiterrs[:-1]):
         if key == "SINI" or key == "E" or key == "ECC":
             getattr(modelin, key).prior = Prior(uniform(0.0, 1.0))
@@ -789,8 +789,8 @@ def main(argv=None):
             getattr(modelin, key).prior = Prior(uniform(0.0, 10.0))
         elif key.startswith("GLPH"):
             getattr(modelin, key).prior = Prior(uniform(-0.5, 1.0))
-        elif key.startswith('WX'):
-            getattr(modelin, key).prior = Prior(uniform(-1/p0,2.0/p0))
+        elif key.startswith("WX"):
+            getattr(modelin, key).prior = Prior(uniform(-1 / p0, 2.0 / p0))
         else:
             getattr(modelin, key).prior = Prior(
                 norm(loc=float(v), scale=float(e * args.priorerrfact))
@@ -980,7 +980,7 @@ def main(argv=None):
     lnprior_samps = blobs["lnprior"]
     lnlikelihood_samps = blobs["lnlikelihood"]
     lnpost_samps = lnprior_samps + lnlikelihood_samps
-    maxpost= lnpost_samps[:][burnin:].max()
+    maxpost = lnpost_samps[:][burnin:].max()
     ind = np.unravel_index(
         np.argmax(lnpost_samps[:][burnin:]), lnpost_samps[:][burnin:].shape
     )
@@ -1031,19 +1031,19 @@ def main(argv=None):
     ]
     ftr.set_param_uncertainties(dict(zip(ftr.fitkeys[:-1], errors[:-1])))
 
-    #if 'WaveX' in list(ftr.model.components.keys()):
+    # if 'WaveX' in list(ftr.model.components.keys()):
     #    n_params = len(ftr.model.free_params) - int(len(ftr.model.components['WaveX'].free_params_component)/2)
-    #else:
+    # else:
     n_params = len(ftr.model.free_params)
 
-    AIC = 2*(n_params - maxpost)
-    BIC = n_params * np.log(len(ts)) - 2*maxpost
+    AIC = 2 * (n_params - maxpost)
+    BIC = n_params * np.log(len(ts)) - 2 * maxpost
 
     ftr.model.NTOA.value = ts.ntoas
     f = open(filename + "_post.par", "w")
     f.write(ftr.model.as_parfile())
-    f.write(f'\n#The AIC is {AIC}')
-    f.write(f'\n#The BIC is {BIC}')
+    f.write(f"\n#The AIC is {AIC}")
+    f.write(f"\n#The BIC is {BIC}")
     f.close()
 
     # Print the best MCMC values and ranges
